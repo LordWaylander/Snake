@@ -3,23 +3,34 @@ var zoneJeu,
     snake = new Object(),
     pomme = new Object(),
     vies = new Object(),
-    largeur = hauteur = 10,
+    largeur = hauteur = 20,
     depX = depY = 0, // saut mvt snake axe X et Y
     historiqueTouche, // historique pour déplacement
     interval = 150, // interval de répétition pour setTinterval
     score = 0,
+    scoreHistorique = 0,
     intervalID = null,
     collision = false;
     
-    pomme.pommeRadius = 5,
+    pomme.pommeRadius = 10,
     snake.snakeContent = [], // contient les éléements du snake
     snake.tailleSnake = 5, // taille snake départ
     snake.tailleMaxSnake = 100; // taille max snake
     snake.vies = 2;
     vies.compteur = 0;
     vies.affichageVie = false;
+    vies.timeout = 0;
+
+    
 
 document.addEventListener('DOMContentLoaded', () => {
+    if (window.screen.width < 615) {
+        largeur = hauteur = 10,
+        pomme.pommeRadius = 5
+        zoneJeu = document.getElementById('zoneJeu');
+        zoneJeu.setAttribute('width', 300);
+        zoneJeu.setAttribute('height', 300);
+    }
     
     zoneJeu = document.getElementById('zoneJeu');
     document.addEventListener("keydown", move);
@@ -59,7 +70,7 @@ function game() {
     ctx.beginPath();
     ctx.font = '16px Arial';
     ctx.fillStyle = '#2ecc71';
-    ctx.fillText('√', pomme.x, pomme.y+3);
+    ctx.fillText('√', pomme.x+3, pomme.y+3);
     ctx.arc(pomme.x+pomme.pommeRadius, pomme.y+pomme.pommeRadius, pomme.pommeRadius, 0, Math.PI * 2);
     ctx.fillStyle="#e74c3c";
     ctx.fill();
@@ -71,7 +82,7 @@ function game() {
 
     ctx.font = '16px Arial';
     ctx.fillStyle = '#fff';
-    ctx.fillText('Score: ' + score, 5, 20);
+    ctx.fillText('Score: ' + scoreHistorique, 5, 20);
     ctx.font = '16px Arial';
     ctx.fillStyle = '#fff';
     ctx.fillText('Vies: ' + snake.vies, zoneJeu.width - 60, 20);
@@ -79,7 +90,6 @@ function game() {
     manger();
     collison();
     life();
-    
 }
 
 function manger(){
@@ -87,6 +97,7 @@ function manger(){
 if(snake.x==pomme.x && snake.y==pomme.y){
     document.getElementById('manger').play();
     score+=2*(snake.tailleSnake-3);
+    scoreHistorique+=2*(snake.tailleSnake-3);
     // augmentation taille serpent si <= a taille max allouée
     if(snake.tailleSnake <= snake.tailleMaxSnake){
         snake.tailleSnake++;
@@ -96,7 +107,9 @@ if(snake.x==pomme.x && snake.y==pomme.y){
         snake.vies++;
         score=0;
     }
-    interval-=5;
+    if (interval >20) {
+        interval-=5;
+    }
     clearTimeout(intervalID);
     intervalID = setInterval(game, interval);
 
@@ -120,7 +133,7 @@ function collison() {
         document.getElementById('lifePerdue').play();
         snake.vies--;
         collision=false;
-        interval = 150;
+        //interval = 150;
         while(snake.snakeContent.length>snake.tailleSnake){
             snake.snakeContent.shift();
         }
@@ -136,6 +149,7 @@ function collison() {
             ctx.font = '40px Arial';
             ctx.fillStyle = '#fff';
             ctx.fillText('GAME OVER', zoneJeu.width / 2 - 130, zoneJeu.height / 2);
+            ctx.fillText('Score : '+ scoreHistorique, zoneJeu.width / 2-75, zoneJeu.height / 2+50);
             clearTimeout(intervalID);
         }
     }
@@ -143,9 +157,16 @@ function collison() {
 
 function life() {
     // vies
+    console.log(vies.timeout);
+    if ((vies.affichageVie == true) && (vies.timeout++ > 100)) {
+        vies.timeout = 0;
+        vies.x = -9999;
+        vies.y = -9999;
+        vies.affichageVie = false;
+    }
     if(vies.compteur++ >= 115){
         vies.compteur = 0;
-        if(Math.random()*100 >= 75){ //1 chance sur 4
+        if(Math.random()*100 >= 0){ //1 chance sur 4
             vies.x=Math.trunc(Math.random()*zoneJeu.width/largeur)*largeur;
             vies.y=Math.trunc(Math.random()*zoneJeu.height/hauteur)*hauteur;
             vies.affichageVie = true;
@@ -155,12 +176,19 @@ function life() {
     if(vies.affichageVie == true){ 
         ctx.font = '20px Arial';
         ctx.fillStyle = '#fff';
-        ctx.fillRect(vies.x, vies.y, largeur, hauteur);
-        ctx.fillText('❤', vies.x-3, vies.y+16);
+        
+        if (window.screen.width < 615) {
+            ctx.fillRect(vies.x, vies.y, largeur-5, hauteur-5);
+            ctx.fillText('❤', vies.x-7, vies.y+9);
+        }else {
+            ctx.fillRect(vies.x, vies.y, largeur-15, hauteur-15);
+            ctx.fillText('❤', vies.x-5, vies.y+10);
+        }
     }
 
     if(snake.x==vies.x && snake.y==vies.y){
         document.getElementById('lifeTaken').play();
+        vies.timeout = 0;
         snake.vies++;
         vies.x = -9999;
         vies.y = -9999;
@@ -210,5 +238,25 @@ function move(key) {
                 historiqueTouche=key.keyCode;
             }
             break;
+        case 82:
+            // R -> restart
+            clearTimeout(intervalID);
+            snake.y = Math.trunc(zoneJeu.height/2);
+            snake.x = Math.trunc(zoneJeu.width/2);
+            snake.snakeContent.push({x:snake.x, y:snake.y});
+            snake.snakeContent = [], // contient les éléements du snake
+            snake.tailleSnake = 5,
+            depX=depY=0;
+            pomme.x = Math.trunc(Math.random()*zoneJeu.width/largeur)*largeur;
+            pomme.y = Math.trunc(Math.random()*zoneJeu.height/hauteur)*hauteur;
+            score = 0;
+            scoreHistorique = 0;
+            snake.vies = 2;
+            vies.timeout = 0;
+            collision = false;
+            interval = 150,
+            intervalID = setInterval(game,interval);
+            break;
+
     }
 }
